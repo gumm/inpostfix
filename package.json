@@ -1,5 +1,5 @@
 {
-  "name": "rpn",
+  "name": "inpostfix",
   "description": "Convert infix to RPN notation, and solve it",
   "version": "0.0.1",
   "main": "main.js",
