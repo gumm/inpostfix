@@ -11,6 +11,10 @@
     "postfix notation",
     "shunting-yard algorithm"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gumm/inpostfix.git"
+  },
   "author": {
     "name": "Jan Badenhorst",
     "email": "janhendrik.badenhorst@gmail.com"
