@@ -267,4 +267,16 @@ describe('Tokenize an infix string to a token array', () => {
     assert.deepStrictEqual(RPN.calcInfix(s),  c);
   });
 
+  it('6+myFn(a,5,urFn(7,3))', () => {
+    const lookup = { 'a': 7, 'myFn': (a,b,c) => a+b+c, 'urFn': (a,b) => a+b }
+    let s = '6+myFn(a,5,urFn(7,3))';
+    let tokens = [6,'+','myFn','(','a',5,'urFn','(',7,3,')',')'];
+    let rArr = [6,'a',5,7,3,'urFn(2)','myFn(3)','+'];
+    let c = 28;
+    assert.deepStrictEqual(RPN.tokenize(s), tokens);
+    assert.deepStrictEqual(RPN.toRPN(s), rArr);
+    assert.deepStrictEqual(RPN.calcRPN(rArr, lookup),  c);
+    assert.deepStrictEqual(RPN.calcInfix(s, lookup),  c);
+  });
+
 });
