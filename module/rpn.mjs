@@ -40,6 +40,8 @@ const isLeftBracket = e => e === brackets[0];
 
 const noEmptyStrings = e => e !== '';
 
+const noCommas = e => e !== ',';
+
 const isUnarySymbol = (lc, i) =>
     lc === undefined || i === 0 || isOperator(lc) || isLeftBracket(lc);
 
@@ -59,6 +61,8 @@ const isNumber = n => typeof n === 'number' && !Number.isNaN(n);
 const isOperator = e => OPS.has(e);
 
 const isLeftAss = e => OPS.get(e)[1] === 'L';
+
+const isFunction = (e, ne) => typeof(e) === 'string' && typeof(ne) === 'string' && isLetter(e) && isLeftBracket(ne);
 
 const peek = a => a[a.length - 1];
 
@@ -92,12 +96,17 @@ const tokenize = infixString => infixString
         }, [[], []])
     .reduce((p, c, i) => i ? [...p, c.join('')] : c, [])
     .filter(noEmptyStrings)
+    .filter(noCommas)
     .map(maybeNumber);
 
 
 const toRPN = infixString => tokenize(infixString)
-    .reduce(([rS, oS], c) => {
-      if (isBrackets(c)) {
+    .reduce(([rS, oS, fnArgs], c, i, t) => {
+      if (isFunction(c, t[i+1])) {
+        oS.push(c + "()");
+        fnArgs.push(0);
+      }
+      else if (isBrackets(c)) {
         if (isLeftBracket(c)) {
           oS.push(c);
         }
@@ -105,11 +114,17 @@ const toRPN = infixString => tokenize(infixString)
           let nextOpp = oS.pop();
           while (nextOpp !== '(') {
             rS.push(nextOpp);
+            if (fnArgs.length > 0) fnArgs[fnArgs.length-1]++;
             nextOpp = oS.pop();
+          }
+          if (fnArgs.length > 0 && oS[oS.length-1].endsWith('()')) {
+            oS[oS.length-1] = oS[oS.length-1].replace("()",`(${fnArgs[fnArgs.length-1]})`);
+            fnArgs.pop();
           }
         }
       } else if (!isOperator(c)) {
         rS.push(c);
+        if (fnArgs.length > 0) fnArgs[fnArgs.length-1]++;
       } else {
         const o1 = c;
         let o2 = peek(oS);
@@ -124,25 +139,48 @@ const toRPN = infixString => tokenize(infixString)
         }
         oS.push(o1);
       }
-      return [rS, oS]
-    }, [[], []])
-    .reduce((p, c, i) => i ? [...p, ...c.reverse()] : c, []);
+      return [rS, oS, fnArgs];
+    }, [[], [], []])
+    .reduce((p, c, i) => i === 1 ? [...p, ...c.reverse()] : i === 0 ? c : p, []);
+ 
+const lookupVar = (v, lookup) => {
+  if (typeof(v) !== 'string') return v;
+  if (lookup[v] !== undefined) return lookup[v];
+  return v;
+}
 
-
-const calcRPN = rpn => rpn.reduce((p, c) => {
+const calcRPN = (rpn, lookup) => rpn.reduce((p, c) => {
   if (isNumber(c)) {
     p.push(c);
     return p;
   }
-  const arity = OPS.get(c)[2];
-  const opp = OPS.get(c)[3];
+  let isFn = c.match(/(.*)\((\d+)\)/);
+  if (!isFn && isLetter(c)) {
+    p.push(lookupVar(c, lookup));
+    return p;
+  }
+  let arity = 0, opp = null;
+  if (isFn) {
+    arity = parseInt(isFn[2], 10);
+    opp = lookupVar(isFn[1], lookup);
+  }
+  else {
+    arity = OPS.get(c)[2];
+    opp = OPS.get(c)[3];
+  }
+  const args = [];
+  if (arity > 1) {
+    for (let i=0; i<arity; i++) {
+      args.push(lookupVar(p.pop(), lookup));
+    }
+  }
   p.push(arity === 1
-      ? opp(p.pop())
-      : opp(...[p.pop(), p.pop()]));
+      ? opp(lookupVar(p.pop(), lookup))
+      : opp(...args));
   return p;
 }, [])[0];
 
-const calcInfix = s => calcRPN(toRPN(s));
+const calcInfix = (s, lookup) => calcRPN(toRPN(s), lookup);
 
 
 export {
